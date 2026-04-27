@@ -1,0 +1,22 @@
+# Core
+pandas
+numpy
+matplotlib
+scikit-learn
+python-dotenv
+
+# Time Series Models
+xgboost
+prophet
+statsmodels
+
+# Experiment Tracking
+mlflow
+psycopg2-binary
+sqlalchemy
+
+# Hyperparameter Tuning
+optuna
+
+# Dashboard (Sprint 4)
+streamlit

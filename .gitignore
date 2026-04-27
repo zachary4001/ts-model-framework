@@ -1,0 +1,24 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables (never commit credentials)
+.env
+
+# MLflow
+mlflow-artifacts/
+mlruns/
+
+# Data files (commit structure, not raw data)
+data/*.csv
+data/*.parquet
+data/*.xlsx
+
+# OS
+.DS_Store
+Thumbs.db
