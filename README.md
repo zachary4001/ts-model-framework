@@ -6,7 +6,8 @@ on any dataset. Built during Masterschool MSIT Term 8 (Time Series Modeling).
 ## Structure
 - `data/`      — raw and processed datasets
 - `notebooks/` — sandbox notebooks (build and test here)
-- `exports/`   — stable .py exports (imported by other notebooks)
+- `exports/`   — stable .py exports (imported by other notebooks)  
+- `models/`    - successful best fit models stored for API 
 - `mlflow-artifacts/` — local MLflow artifact storage
 
 ## Workflow
