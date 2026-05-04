@@ -17,10 +17,3 @@ TARGET_COLUMN = "unit_sales"
 # MLflow
 MLFLOW_URI    = os.getenv('MLFLOW_URI', 'http://localhost:5000')
 EXPERIMENT    = "ts-model-framework"
-
-# To activate MLflow server manually, run the command below from powershell terminal
-# > mlflow server --backend-store-uri 'postgresql://postgres_admin:9r&#2h$5y^6b78n8pU*jF8@192.168.2.30:5432/mlflow_tracking' --default-artifact-root './mlartifacts' -h 0.0.0.0 -p 5000
-
-# To run streamlet against Best model, run the commands below from powershell terminal
-# cd Q:\scripts\projects\ts-model-framework
-# streamlit run app.py
