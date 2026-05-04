@@ -51,6 +51,79 @@ def load_model_name():
             return f.read().strip()
     return "Unknown"
 
+# ── Load LSTM / RNN models ────────────────────────────────────
+def load_torch_model(model_type='lstm'):
+    import torch, json
+    from torch import nn
+
+    params_path = os.path.join(config.MODELS_PATH, f'{model_type}_params.json')
+    weights_path = os.path.join(config.MODELS_PATH, f'best_{model_type}_model.pt')
+    scaler_path = os.path.join(config.MODELS_PATH, f'{model_type}_scaler.pkl')
+
+    if not all(os.path.exists(p) for p in [params_path, weights_path, scaler_path]):
+        return None, None, None
+
+    with open(params_path) as f:
+        params = json.load(f)
+
+    class LSTMForecaster(nn.Module):
+        def __init__(self, input_size=1, hidden_size=64, num_layers=2, dropout=0.2):
+            super().__init__()
+            self.lstm = nn.LSTM(input_size, hidden_size, num_layers,
+                                dropout=dropout, batch_first=True)
+            self.fc = nn.Linear(hidden_size, 1)
+        def forward(self, x):
+            out, _ = self.lstm(x)
+            return self.fc(out[:, -1, :])
+
+    class SimpleRNN(nn.Module):
+        def __init__(self, input_size=1, hidden_size=64, output_size=1):
+            super().__init__()
+            self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
+            self.fc = nn.Linear(hidden_size, output_size)
+        def forward(self, x):
+            out, _ = self.rnn(x)
+            return self.fc(out[:, -1, :])
+
+    hidden_size = params.get('hidden_size', 64)
+    ModelClass = LSTMForecaster if model_type == 'lstm' else SimpleRNN
+    model = ModelClass(hidden_size=hidden_size)
+    model.load_state_dict(torch.load(weights_path, map_location='cpu'))
+    model.eval()
+
+    scaler = joblib.load(scaler_path)
+    return model, scaler, params
+
+
+def make_torch_forecast(df, model, scaler, params, cutoff, n_days):
+    import torch
+    cutoff = pd.to_datetime(cutoff)
+    seq_len = params.get('sequence_length', 30)
+    target = config.TARGET_COLUMN
+
+    history = df.loc[df.index <= cutoff][target].fillna(0).values[-seq_len:]
+    if len(history) < seq_len:
+        return None
+
+    scaled = scaler.transform(history.reshape(-1, 1))
+    forecasts = []
+
+    for i in range(n_days):
+        seq = torch.FloatTensor(scaled[-seq_len:]).reshape(1, seq_len, 1)
+        with torch.no_grad():
+            pred_scaled = model(seq).item()
+        pred = float(scaler.inverse_transform([[pred_scaled]])[0][0])
+        pred = max(0, round(pred, 2))
+        forecasts.append({
+            'date': cutoff + pd.Timedelta(days=i+1),
+            'forecast': pred
+        })
+        scaled = np.append(scaled, [[pred_scaled]], axis=0)
+
+    return pd.DataFrame(forecasts).set_index('date')
+
+
+
 # ── Forecast function ─────────────────────────────────────────
 def make_forecast(df, model, features, cutoff, n_days):
     cutoff     = pd.to_datetime(cutoff)
@@ -120,8 +193,8 @@ def load_mlflow_results():
 
 # ── App layout ────────────────────────────────────────────────
 st.set_page_config(page_title="TS Model Framework", layout="wide")
-st.title("Time Series Model Comparison Framework")
-st.caption("Retail Unit Sales — Corporacion Favorita dataset")
+st.title("Time-Series Model Comparison")
+st.caption("Retail Unit Sales - Corporacion Favorita dataset")
 
 model_name = load_model_name()
 st.info(f"Active model: **{model_name}**")
@@ -137,56 +210,80 @@ cutoff_date  = st.sidebar.date_input(
 )
 n_days       = st.sidebar.slider("Days to forecast", 1, 30, 7)
 history_days = st.sidebar.slider("History days to show", 14, 120, 60)
-run_button   = st.sidebar.button("Run Forecast")
+model_selector = st.sidebar.selectbox(
+    "Forecast model",
+    ["Best Classical/XGBoost", "LSTM (tuned)", "RNN (tuned)"]
+)
+run_button = st.sidebar.button("Run Forecast")
 
 # ── Tabs ──────────────────────────────────────────────────────
 tab1, tab2 = st.tabs(["Forecast", "Model Leaderboard"])
 
 with tab1:
     if run_button:
-        model = load_model()
-        if model is None:
-            st.error("No model found. Run 02_experiments.ipynb first.")
-        else:
-            df = load_data()
-            cutoff = pd.to_datetime(cutoff_date)
+        df = load_data()
+        cutoff = pd.to_datetime(cutoff_date)
 
-            history_plot = df.loc[
-                (df.index >= cutoff - pd.Timedelta(days=history_days)) &
-                (df.index <= cutoff)
-            ][config.TARGET_COLUMN]
+        history_plot = df.loc[
+            (df.index >= cutoff - pd.Timedelta(days=history_days)) &
+            (df.index <= cutoff)
+        ][config.TARGET_COLUMN]
 
-            with st.spinner("Generating forecast..."):
+        with st.spinner("Generating forecast..."):
+            if model_selector == "Best Classical/XGBoost":
+                model = load_model()
+                if model is None:
+                    st.error("No model found. Run 02_experiments.ipynb first.")
+                    st.stop()
                 forecast_df = make_forecast(df, model, FEATURES, cutoff, n_days)
 
-            fig, ax = plt.subplots(figsize=(12, 4))
-            ax.plot(history_plot.index, history_plot.values,
-                    label="Historical sales", color="steelblue", linewidth=1.5)
-            ax.plot(forecast_df.index, forecast_df["forecast"].values,
-                    label=f"{n_days}-day forecast", color="orange",
-                    linestyle="--", linewidth=2, marker="o", markersize=4)
-            ax.axvline(cutoff, color="red", linestyle=":", linewidth=1.5,
-                       label="Cutoff date")
-            ax.set_title(f"Sales Forecast from {cutoff.date()}")
-            ax.set_ylabel("Unit Sales")
-            ax.legend()
-            ax.grid(True, alpha=0.3)
-            plt.tight_layout()
-            st.pyplot(fig)
+            elif model_selector == "LSTM (tuned)":
+                model, scaler, params = load_torch_model('lstm')
+                if model is None:
+                    st.error("LSTM model not found. Run 03_LSTM.ipynb first.")
+                    st.stop()
+                forecast_df = make_torch_forecast(df, model, scaler, params, cutoff, n_days)
 
-            st.subheader("Forecast values")
-            st.dataframe(forecast_df.reset_index().rename(
-                columns={"date": "Date", "forecast": "Predicted Sales"}
-            ))
+            elif model_selector == "RNN (tuned)":
+                model, scaler, params = load_torch_model('rnn')
+                if model is None:
+                    st.error("RNN model not found. Run 04_RNN.ipynb first.")
+                    st.stop()
+                forecast_df = make_torch_forecast(df, model, scaler, params, cutoff, n_days)
 
-            csv = forecast_df.reset_index().to_csv(index=False)
-            st.download_button(
-                label="Download forecast as CSV",
-                data=csv,
-                file_name=f"forecast_{cutoff_date}.csv",
-                mime="text/csv"
-            )
-            st.success("Forecast complete!")
+        if forecast_df is None:
+            st.error("Insufficient history for sequence length. Try an earlier cutoff date.")
+            st.stop()
+
+        fig, ax = plt.subplots(figsize=(12, 4))
+        ax.plot(history_plot.index, history_plot.values,
+                label="Historical sales", color="steelblue", linewidth=1.5)
+        ax.plot(forecast_df.index, forecast_df["forecast"].values,
+                label=f"{model_selector} -- {n_days}-day forecast",
+                color="orange", linestyle="--", linewidth=2,
+                marker="o", markersize=4)
+        ax.axvline(cutoff, color="red", linestyle=":", linewidth=1.5,
+                   label="Cutoff date")
+        ax.set_title(f"Sales Forecast from {cutoff.date()} -- {model_selector}")
+        ax.set_ylabel("Unit Sales")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        st.pyplot(fig)
+
+        st.subheader("Forecast values")
+        st.dataframe(forecast_df.reset_index().rename(
+            columns={"date": "Date", "forecast": "Predicted Sales"}
+        ))
+
+        csv = forecast_df.reset_index().to_csv(index=False)
+        st.download_button(
+            label="Download forecast as CSV",
+            data=csv,
+            file_name=f"forecast_{cutoff_date}_{model_selector}.csv",
+            mime="text/csv"
+        )
+        st.success("Forecast complete!")
     else:
         st.info("Adjust settings in the sidebar and click **Run Forecast**.")
 
