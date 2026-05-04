@@ -1,6 +1,6 @@
 # ── app.py — Time Series Model Comparison Dashboard ──────────
-# Version 1.03
-# updated 04.05.2026
+# Version 1.02
+# updated 30.04.2026
 # ────────────────────────────────────────────────────────────
 import os
 import joblib
@@ -9,7 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 import sys
-sys.path.append(r'Q:\\scripts\\projects\\ts-model-framework')
+sys.path.append(r'Q:\scripts\projects\ts-model-framework')
 import config
 
 # DATA_PATH   = r"Q:\scripts\projects\ts-model-framework\data"
@@ -40,6 +40,8 @@ def load_data():
 # @st.cache_resource
 def load_model():
     path = os.path.join(config.MODELS_PATH, 'best_model.pkl')
+    st.write(f"DEBUG -- looking for model at: {path}")
+    st.write(f"DEBUG -- file exists: {os.path.exists(path)}")
     if os.path.exists(path):
         return joblib.load(path)
     return None

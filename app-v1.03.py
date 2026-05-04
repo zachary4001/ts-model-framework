@@ -120,8 +120,8 @@ def load_mlflow_results():
 
 # ── App layout ────────────────────────────────────────────────
 st.set_page_config(page_title="TS Model Framework", layout="wide")
-st.title("Time Series Model Comparison Framework")
-st.caption("Retail Unit Sales — Corporacion Favorita dataset")
+st.title("Time-Series Model Comparison")
+st.caption("Retail Unit Sales - Corporacion Favorita dataset")
 
 model_name = load_model_name()
 st.info(f"Active model: **{model_name}**")
