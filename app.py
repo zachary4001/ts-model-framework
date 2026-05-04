@@ -207,7 +207,7 @@ cutoff_date  = st.sidebar.date_input(
     max_value=pd.to_datetime("2014-03-30")
 )
 n_days       = st.sidebar.slider("Days to forecast", 1, 30, 30)
-history_days = st.sidebar.slider("History days to show", 14, 120, 60)
+history_days = st.sidebar.slider("History days to show", 14, 120, 90)
 model_selector = st.sidebar.selectbox(
     "Forecast model",
     ["Best Classical/XGBoost", "LSTM (tuned)", "RNN (tuned)"]

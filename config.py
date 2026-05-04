@@ -1,4 +1,7 @@
 # config.py
+# this config file is for the project Corporacion Favorita retail data
+# updated 04.05.2026
+
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -22,4 +25,4 @@ TARGET_COLUMN = "unit_sales"
 
 # MLflow
 MLFLOW_URI    = os.getenv('MLFLOW_URI', 'http://localhost:5000')
-EXPERIMENT    = "ts-model-framework"
+EXPERIMENT    = "favorita"
