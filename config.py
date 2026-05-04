@@ -3,8 +3,14 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+# Detect if running on Streamlit Cloud or locally
+IS_LOCAL = os.path.exists(r'Q:\scripts\projects\ts-model-framework')
+if IS_LOCAL:
+    PROJECT_PATH = r'Q:\scripts\projects\ts-model-framework'
+else:
+    PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
+
 # Paths
-PROJECT_PATH  = os.getenv('PROJECT_PATH',  r'Q:\\scripts\\projects\\ts-model-framework')
 DATA_PATH     = os.getenv('DATA_PATH',     os.path.join(PROJECT_PATH, 'data'))
 MODELS_PATH   = os.getenv('MODELS_PATH',   os.path.join(PROJECT_PATH, 'models'))
 EXPORTS_PATH  = os.getenv('EXPORTS_PATH',  os.path.join(PROJECT_PATH, 'exports'))

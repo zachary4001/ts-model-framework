@@ -15,7 +15,7 @@ mlflow-artifacts/
 mlruns/
 
 # Data files (commit structure, not raw data)
-data/*.csv
+# data/*.csv
 data/*.parquet
 data/*.xlsx
 

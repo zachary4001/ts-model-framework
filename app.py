@@ -1,5 +1,5 @@
 # ── app.py — Time Series Model Comparison Dashboard ──────────
-# Version 1.03
+# Version 1.04
 # updated 04.05.2026
 # ────────────────────────────────────────────────────────────
 import os
@@ -11,12 +11,13 @@ import streamlit as st
 import sys
 sys.path.append(r'Q:\\scripts\\projects\\ts-model-framework')
 import config
+import plotly.graph_objects as go
 
-# DATA_PATH   = r"Q:\scripts\projects\ts-model-framework\data"
-# MODELS_PATH = r"Q:\scripts\projects\ts-model-framework\models"
+if 'forecast_df' not in st.session_state:
+    st.session_state.forecast_df = None
+if 'history_plot' not in st.session_state:
+    st.session_state.history_plot = None
 
-# DATE_COLUMN   = "date"
-# TARGET_COLUMN = "unit_sales"
 FEATURES = [
     'year', 'month', 'day', 'dayofweek', 'quarter', 'week_of_year',
     'is_weekend', 'is_month_start', 'is_month_end',
@@ -196,9 +197,6 @@ st.set_page_config(page_title="TS Model Framework", layout="wide")
 st.title("Time-Series Model Comparison")
 st.caption("Retail Unit Sales - Corporacion Favorita dataset")
 
-model_name = load_model_name()
-st.info(f"Active model: **{model_name}**")
-
 # ── Sidebar ───────────────────────────────────────────────────
 st.sidebar.header("Forecast Settings")
 
@@ -208,13 +206,15 @@ cutoff_date  = st.sidebar.date_input(
     min_value=pd.to_datetime("2013-06-01"),
     max_value=pd.to_datetime("2014-03-30")
 )
-n_days       = st.sidebar.slider("Days to forecast", 1, 30, 7)
+n_days       = st.sidebar.slider("Days to forecast", 1, 30, 30)
 history_days = st.sidebar.slider("History days to show", 14, 120, 60)
 model_selector = st.sidebar.selectbox(
     "Forecast model",
     ["Best Classical/XGBoost", "LSTM (tuned)", "RNN (tuned)"]
 )
 run_button = st.sidebar.button("Run Forecast")
+model_name = load_model_name() if model_selector == "Best Classical/XGBoost" else model_selector
+st.info(f"Active model: **{model_name}**")
 
 # ── Tabs ──────────────────────────────────────────────────────
 tab1, tab2 = st.tabs(["Forecast", "Model Leaderboard"])
@@ -251,25 +251,56 @@ with tab1:
                     st.stop()
                 forecast_df = make_torch_forecast(df, model, scaler, params, cutoff, n_days)
 
-        if forecast_df is None:
-            st.error("Insufficient history for sequence length. Try an earlier cutoff date.")
-            st.stop()
+        st.session_state.forecast_df = forecast_df
+        st.session_state.history_plot = history_plot
 
-        fig, ax = plt.subplots(figsize=(12, 4))
-        ax.plot(history_plot.index, history_plot.values,
-                label="Historical sales", color="steelblue", linewidth=1.5)
-        ax.plot(forecast_df.index, forecast_df["forecast"].values,
-                label=f"{model_selector} -- {n_days}-day forecast",
-                color="orange", linestyle="--", linewidth=2,
-                marker="o", markersize=4)
-        ax.axvline(cutoff, color="red", linestyle=":", linewidth=1.5,
-                   label="Cutoff date")
-        ax.set_title(f"Sales Forecast from {cutoff.date()} -- {model_selector}")
-        ax.set_ylabel("Unit Sales")
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        plt.tight_layout()
-        st.pyplot(fig)
+    if st.session_state.forecast_df is not None:
+        cutoff = pd.to_datetime(cutoff_date)
+        chart_mode = st.radio("Chart style", ["Static", "Interactive"], horizontal=True)
+        forecast_df   = st.session_state.forecast_df
+        history_plot  = st.session_state.history_plot
+
+        if chart_mode == "Static":
+            fig, ax = plt.subplots(figsize=(12, 4))
+            ax.plot(history_plot.index, history_plot.values,
+                    label="Historical sales", color="steelblue", linewidth=1.5)
+            ax.plot(forecast_df.index, forecast_df["forecast"].values,
+                    label=f"{model_selector} -- {n_days}-day forecast",
+                    color="orange", linestyle="--", linewidth=2,
+                    marker="o", markersize=4)
+            ax.axvline(cutoff, color="red", linestyle=":", linewidth=1.5,
+                    label="Cutoff date")
+            ax.set_title(f"Sales Forecast from {cutoff.date()} -- {model_selector}")
+            ax.set_ylabel("Unit Sales")
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+            plt.tight_layout()
+            st.pyplot(fig)
+
+        else:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=history_plot.index, y=history_plot.values,
+                name="Historical sales", line=dict(color="steelblue", width=2)
+            ))
+            fig.add_trace(go.Scatter(
+                x=forecast_df.index, y=forecast_df["forecast"].values,
+                name=f"{model_selector} forecast",
+                line=dict(color="orange", width=2, dash="dash"),
+                mode="lines+markers", marker=dict(size=6)
+            ))
+            fig.add_vline(
+                x=cutoff.timestamp() * 1000,
+                line=dict(color="red", dash="dot", width=1.5),
+                annotation_text="Cutoff"
+            )
+            fig.update_layout(
+                title=f"Sales Forecast from {cutoff.date()} -- {model_selector}",
+                yaxis_title="Unit Sales",
+                hovermode="x unified",
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("Forecast values")
         st.dataframe(forecast_df.reset_index().rename(
