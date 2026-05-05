@@ -1,9 +1,7 @@
 # 04 - RNN Forecasting Model
 
-
-# - Version 1.03  
-# - updated 04.05.26
-
+# - Version 1.04  
+# - updated 05.05.26
 
 # A Simple Recurrent Neural Network (RNN) baseline.
 # 
@@ -43,14 +41,14 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Reproducibility
-torch.manual_seed(42)
-np.random.seed(42)
+torch.manual_seed(53)
+np.random.seed(53)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 mlflow.set_tracking_uri(config.MLFLOW_URI)
 mlflow.set_experiment(config.EXPERIMENT)
-
+print(f"MLflow tracking: {config.EXPERIMENT}")
 print(f"Device: {device}")
 print("Libraries loaded.")
 
@@ -350,7 +348,15 @@ with mlflow.start_run(run_name="rnn-tuned"):
 
 
 # S8 - Save Tuned RNN Model
-import torch
+import joblib, json
+scaler_path = os.path.join(config.MODELS_PATH, 'rnn_scaler.pkl')
+joblib.dump(scaler, scaler_path)
+print(f"Scaler saved: {scaler_path}")
+
+params_path = os.path.join(config.MODELS_PATH, 'rnn_params.json')
+with open(params_path, 'w') as f:
+    json.dump(tuned_params, f)
+print(f"Params saved: {params_path}")
 
 rnn_save_path = os.path.join(config.MODELS_PATH, 'best_rnn_model.pt')
 torch.save(tuned_model.state_dict(), rnn_save_path)
@@ -365,9 +371,33 @@ print(f"RMSE: {rmse:.2f} | MAE: {mae:.2f}")
 
 
 # ---
+## S9 - Save Predictions for Residuals Analysis
+
+
+# Save Predictions for Residuals Analysis
+import pandas as pd
+import os
+
+# Build date index -- accounts for sequence length offset
+pred_index = df_test.index[SEQUENCE_LENGTH:]
+
+preds_out = pd.DataFrame({
+    'date':    pred_index,
+    'actual':  actuals,
+    'predicted': preds,
+    'residual':  actuals - preds
+}).set_index('date')
+
+preds_path = os.path.join(config.MODELS_PATH, 'rnn_predictions.csv')
+preds_out.to_csv(preds_path)
+print(f"RNN predictions saved: {preds_path} | rows: {len(preds_out)}")
+
+
+# ---
 ## S9 - Training Loss & Forecast Plot
 
 
+# S9 - Training Loss & Forecast Plot
 fig, axes = plt.subplots(1, 2, figsize=(16, 5))
 
 axes[0].plot(train_losses)
@@ -387,7 +417,117 @@ plt.show()
 
 
 # ---
-## S10 - Notes & Observations
+## S10 - Sequence Length Experiment Loop
+
+
+# S10 - Sequence Length Experiment Loop
+from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
+
+for seq_len in [14, 60]:
+    print(f"\n{'='*50}")
+    print(f"Testing SEQUENCE_LENGTH = {seq_len}")
+    print(f"{'='*50}")
+
+    # Build sequences
+    X_tr, y_tr = make_sequences(train_scaled, seq_len)
+    X_te, y_te = make_sequences(test_scaled, seq_len)
+    X_tr = X_tr.reshape(-1, seq_len, 1)
+    X_te = X_te.reshape(-1, seq_len, 1)
+
+    X_tr_t = torch.FloatTensor(X_tr).to(device)
+    y_tr_t = torch.FloatTensor(y_tr).to(device)
+    X_te_t = torch.FloatTensor(X_te).to(device)
+
+    # Hyperopt
+    def objective(params):
+        m = SimpleRNN(hidden_size=int(params['hidden_size'])).to(device)
+        loader = DataLoader(TensorDataset(X_tr_t, y_tr_t),
+                           batch_size=int(params['batch_size']), shuffle=False)
+        opt = torch.optim.Adam(m.parameters(), lr=params['lr'])
+        criterion_h = nn.MSELoss()
+        best_loss, patience_count = float('inf'), 0
+        for epoch in range(100):
+            m.train()
+            epoch_loss = 0
+            for X_b, y_b in loader:
+                opt.zero_grad()
+                loss = criterion_h(m(X_b).squeeze(), y_b)
+                loss.backward()
+                opt.step()
+                epoch_loss += loss.item()
+            avg_loss = epoch_loss / len(loader)
+            if avg_loss < best_loss:
+                best_loss, patience_count = avg_loss, 0
+            else:
+                patience_count += 1
+            if patience_count >= 10:
+                break
+        return {'loss': best_loss, 'status': STATUS_OK}
+
+    best = fmin(fn=objective,
+                space={
+                    'hidden_size': hp.choice('hidden_size', [32, 64, 128]),
+                    'lr':          hp.loguniform('lr', np.log(1e-4), np.log(1e-2)),
+                    'batch_size':  hp.choice('batch_size', [8, 16, 32]),
+                },
+                algo=tpe.suggest, max_evals=20,
+                trials=Trials(), verbose=False)
+
+    tuned_params = {
+        'hidden_size':    [32, 64, 128][best['hidden_size']],
+        'learning_rate':  best['lr'],
+        'batch_size':     [8, 16, 32][best['batch_size']],
+        'sequence_length': seq_len,
+        'epochs': EPOCHS
+    }
+
+    # Retrain with best params
+    final_model = SimpleRNN(hidden_size=tuned_params['hidden_size']).to(device)
+    final_loader = DataLoader(TensorDataset(X_tr_t, y_tr_t),
+                              batch_size=tuned_params['batch_size'], shuffle=False)
+    final_opt = torch.optim.Adam(final_model.parameters(), lr=tuned_params['learning_rate'])
+    best_loss, patience_count = float('inf'), 0
+    for epoch in range(EPOCHS):
+        final_model.train()
+        epoch_loss = 0
+        for X_b, y_b in final_loader:
+            final_opt.zero_grad()
+            loss = criterion(final_model(X_b).squeeze(), y_b)
+            loss.backward()
+            final_opt.step()
+            epoch_loss += loss.item()
+        avg_loss = epoch_loss / len(final_loader)
+        if avg_loss < best_loss:
+            best_loss, patience_count = avg_loss, 0
+        else:
+            patience_count += 1
+        if patience_count >= 10:
+            break
+
+    # Evaluate
+    final_model.eval()
+    with torch.no_grad():
+        preds_scaled = final_model(X_te_t).squeeze().cpu().numpy()
+
+    preds   = scaler.inverse_transform(preds_scaled.reshape(-1, 1)).flatten()
+    actuals = scaler.inverse_transform(y_te.reshape(-1, 1)).flatten()
+
+    mask = actuals != 0
+    rmse = np.sqrt(mean_squared_error(actuals, preds))
+    mae  = mean_absolute_error(actuals, preds)
+    mape = np.mean(np.abs((actuals[mask] - preds[mask]) / actuals[mask])) * 100
+    r2   = 1 - (np.sum((actuals - preds)**2) / np.sum((actuals - np.mean(actuals))**2))
+    bias = np.mean(preds - actuals)
+
+    print(f"RNN seq{seq_len} Tuned -- RMSE: {rmse:.2f} | MAE: {mae:.2f} | MAPE: {mape:.2f}% | R²: {r2:.4f} | Bias: {bias:.2f}")
+
+    with mlflow.start_run(run_name=f"rnn-seq{seq_len}-tuned"):
+        mlflow.log_params(tuned_params)
+        mlflow.log_metrics({"rmse": rmse, "mae": mae, "mape": mape, "r2": r2, "bias": bias})
+
+
+# ---
+## S11 - Notes & Observations
 # 
 # - Early stopping triggered at epoch:
 # - RNN baseline RMSE vs LSTM baseline (127.09):

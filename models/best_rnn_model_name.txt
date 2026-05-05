@@ -1,1 +1,1 @@
-rnn-tuned | RMSE: 109.21 | MAE: 85.31
+rnn-tuned | RMSE: 107.86 | MAE: 81.48

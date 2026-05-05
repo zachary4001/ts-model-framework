@@ -1,14 +1,12 @@
-# 00_EDA
-# 00 Exploratory Data Analysis  
+# 00 - Exploratory Data Analysis  
 # Reusable EDA notebook for any time series dataset.  
 # Load via CSV file path or database connection (configure in .env or Section 1 below).
 
 # - Version 1.02  
-# - updated 30.04.26
+# - updated 05.05.26
 
-# Imports
+## Imports
 
-# %%
 import os
 import pandas as pd
 import numpy as np
@@ -29,11 +27,11 @@ print("Libraries loaded.")
 
 
 # ---
-# S1 - Data Source Configuration
+## S1 - Data Source Configuration
 # Set your data source below. Use either CSV or database connection.
 # Comment/uncomment the relevant block.
 
-# %%
+
 # --- Section 1 - Data Source Configuration ---
 
 # ── DATABASE SOURCE (comment out CSV block above if using this) ──
@@ -51,9 +49,9 @@ print(f"Shape: {df.shape}")
 
 
 # ---
-# S2 - Structure & Data Types
+## S2 - Structure & Data Types
 
-# %%
+
 # --- Section 2 - Structure & Data Types
 print("Shape:", df.shape)
 print()
@@ -64,9 +62,9 @@ print(df.dtypes)
 
 
 # ---
-# S3 - Missing Values
+## S3 - Missing Values
 
-# %%
+
 # --- Section 3a - Time Series Detection & Date Continuity Check ---
 
 # Detect if index is datetime
@@ -90,7 +88,7 @@ if is_timeseries:
 else:
     print("Non-time series dataset -- skipping date continuity check.")
 
-# %%
+
 # --- Section 3b - Non-Timeseries Missing Value Check ---
 missing = df.isnull().sum()
 missing_pct = (missing / len(df) * 100).round(2)
@@ -107,17 +105,17 @@ else:
 
 
 # ---
-# S4 - Basic Statistics
+## S4 - Basic Statistics
 
-# %%
+
 # --- Section 4 - Basic Stats ---
 df.describe().round(2)
 
 
 # ---
-# S5 - Target Variable Plot
+## S5 - Target Variable Plot
 
-# %%
+
 # --- Section 5 - Target Variable Plot ---
 fig, ax = plt.subplots(figsize=(15, 5))
 df[config.TARGET_COLUMN].plot(ax=ax)
@@ -128,12 +126,12 @@ plt.show()
 
 
 # ---
-# S6 - Seasonal Decomposition
+## S6 - Seasonal Decomposition
 # Splits the target into trend, seasonality, and residual components.
 # Adjust `period` to match your data frequency (7=weekly, 12=monthly, 365=yearly).
 
-# %%
-# --- Section 6 - Seasonal Decomp ---
+
+# Seasonal Decomp ---
 PERIOD = 7   # adjust as needed
 
 decomp = seasonal_decompose(df[config.TARGET_COLUMN].dropna(), model='additive', period=PERIOD)
@@ -148,7 +146,40 @@ plt.show()
 
 
 # ---
-# S7 - Notes & Observations
+## S7 - Average Sales by Day of Week
+
+
+# Average Sales by Day of Week
+import sys
+sys.path.append(r'Q:\scripts\projects\ts-model-framework')
+
+df_full = pd.read_csv(
+    os.path.join(config.DATA_PATH, 'timeseries_with_features.csv'),
+    parse_dates=['date'], index_col='date'
+)
+
+day_labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+dow_avg = df_full.groupby('dayofweek')[config.TARGET_COLUMN].mean()
+
+fig, ax = plt.subplots(figsize=(9, 5))
+bars = ax.bar(day_labels, dow_avg.values, color='steelblue', edgecolor='white', alpha=0.85)
+ax.bar_label(bars, fmt='%.0f', padding=3, fontsize=9)
+ax.set_title('Average Unit Sales by Day of Week -- Store 44, Item 1047679')
+ax.set_xlabel('Day of Week')
+ax.set_ylabel('Average Unit Sales')
+ax.axhline(dow_avg.mean(), color='red', linestyle='--', 
+           linewidth=1.0, label=f'Overall mean: {dow_avg.mean():.0f}')
+ax.legend()
+plt.tight_layout()
+plt.savefig(os.path.join(config.MODELS_PATH, 'sales_by_dayofweek.png'),
+            dpi=150, bbox_inches='tight')
+plt.show()
+print(f"Peak day: {day_labels[dow_avg.idxmax()]} ({dow_avg.max():.0f} units)")
+print(f"Lowest day: {day_labels[dow_avg.idxmin()]} ({dow_avg.min():.0f} units)")
+
+
+# ---
+## S7 - Notes & Observations
 # Use this cell to document findings for this dataset.
 # 
 # - Date range: 2013-01-02 00:00:00 to 2014-03-31 00:00:00  

@@ -1,4 +1,3 @@
-# 01_preprocessing
 # 01 - Preprocessing
 # Prepares the core dataset into model-ready variants.
 # Each model has different data format requirements -- all handled here.

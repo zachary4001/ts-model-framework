@@ -1,1 +1,1 @@
-lstm-tuned | RMSE: 115.15 | MAE: 91.08
+lstm-tuned | RMSE: 110.06 | MAE: 88.40
