@@ -56,6 +56,7 @@ Current Process Files:
 - Fixed `Results Summary` -- replaced hardcoded experiment name string with `config.EXPERIMENT` variable  
 - Added `XGBoost Hyperopt tuning` (20 trials, logs as `xgboost-tuned`)  
 - Added `SARIMAX grid search` across p∈[0,1,2], d∈[0,1], q∈[0,1,2]; best order (1,1,2), logs as `sarimax-tuned`  
+
 01.05.2026  
 - Fixed save logic to select best model from local results only (not MLflow) `Save Classical & ML Model`   
 - Added per-model metric capture (metrics_xgb, metrics_sarimax, metrics_prophet)  
@@ -80,6 +81,7 @@ Current Process Files:
 - Added `Save Predictions` for Residuals Analysis (rnn_predictions.csv to models folder)  
 - Added `Sequence length` experiment loop seq_len ∈ [14, 60]  
 - Added `Sequence Length Experiment Loop` testing seq_len ∈ [14, 60] (addition to existing 30) with full Hyperopt tuning per variant; logs as `rnn-seq{n}-tuned`  
+
 01.05.2026  
 - Added `Save Tuned LSTM Model` section - Save Tuned RNN Model (torch.save state_dict to models/best_rnn_model.pt)  
 
@@ -96,6 +98,28 @@ Current Process Files:
 - Average Unit Sales by Day of Week bar chart (moved from EDA for residuals context)
 
 ### app.py  
+06.05.2026 - Version 1.06 (presentation release)  
+- Added store selector dropdown (loads from stores.csv, displays as "Store ##, City, Region", defaults to Store 44)  
+- Added product category dropdown (static list, defaults to "Total Unit Sales") -- UI placeholder for future multi-product expansion  
+- Added dataset range caption below Forecast Settings header: "Data range: 2013-01-02 → 2014-03-31"  
+- Extended "Days to forecast" slider max from 30 to 90 days
+- Added st.info() warning when forecast horizon exceeds 30 days
+- Added metric definitions expander in Model Comparison tab (RMSE, MAE, MAPE, R², Bias with tooltips)
+- Added winner row highlight in Model Comparison table (lowest RMSE row highlighted green -- theme-aware)
+- Replaced static/interactive radio toggle with Plotly interactive chart as default
+- Added chart view selector: "Forecast View" / "Actual vs Predicted"
+- Added 3 metric tiles (RMSE, MAE, Bias) with help= tooltip definitions below forecast chart
+- Removed Run Forecast button -- forecast auto-recalculates on any sidebar change
+- Download CSV button moved to sidebar, always visible, disabled state when no forecast exists
+- Added 🌓 theme toggle button at top of sidebar (light/dark CSS injection via st.markdown)
+- Added 'About' with ⚙ icon st.popover() menu containing About, Theme, Download actions
+- Updated About text to include GitHub README hyperlink
+- Light theme: background #f0f4f8, sidebar #dce8f5, text #1a1a2e, accent #2962ff
+- Dark theme: background #0d1117, sidebar #161b22, text #e6edf3, accent #4fc3f7
+- Added widget contrast CSS targeting selectbox, slider, date input elements
+- Tab 3 Data Insights added: 2x2 static image grid (day-of-week, feature importance, oil correlation, residuals)
+- Tab structure expanded from 2 to 3 tabs: Forecast | Model Comparison | Data Insights
+
 01.05.2026  
 - Migrated all path/config variables to config.py  
     - this better standardized global variablescorrected  

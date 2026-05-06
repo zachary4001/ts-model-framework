@@ -33,15 +33,22 @@ ts-model-framework/
 │   └── stores.csv                     # store metadata
 ├── models/                            # saved model artifacts + prediction CSVs
 ├── exports/                           # stable .py exports for notebook imports
-│   ├── 00_EDA.py                       # exploratory data analysis
-│   ├── 01_preprocessing.py             # feature engineering + train/test split
-│   ├── 02_experiments.py               # classical + XGBoost models + MLflow logging
-│   ├── 03_LSTM.py                      # LSTM model + hyperopt tuning
-│   ├── 04_RNN.py                       # RNN model + hyperopt tuning
-│   └── 05_residuals.py                 # cross-model residuals analysis
+│   ├── 00_EDA.py                         # exploratory data analysis
+│   ├── 01_preprocessing.py               # feature engineering + train/test split
+│   ├── 02_experiments.py                 # classical + XGBoost models + MLflow logging
+│   ├── 03_LSTM.py                        # LSTM model + hyperopt tuning
+│   ├── 04_RNN.py                         # RNN model + hyperopt tuning
+│   └── 05_residuals.py                   # cross-model residuals analysis
+├── notebooks/                         # jupyter notebooks for limited change testing
+│   ├── 00_EDA.ipynb                      # working source of 00_EDA.py
+│   ├── 01_preprocessing.ipynb            # working source of 01_preprocessing.py
+│   ├── 02_experiments.ipynb              # working source of 02_experiments.py
+│   ├── 03_LSTM.ipynb                     # working source of 03_LSTM.py
+│   ├── 04_RNN.ipynb                      # working source of 04_RNN.py
+│   └── 05_residuals.ipynb                # working source of 05_residuals.py
 ├── app.py                             # Streamlit forecasting dashboard
 ├── config.py                          # single source of truth for all paths/vars
-└── requirements.txt
+└── requirements.txt                   # required library and versions
 ```
 
 ---
