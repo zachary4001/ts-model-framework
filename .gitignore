@@ -9,6 +9,7 @@ __pycache__/
 
 # Environment variables (never commit credentials)
 .env
+.streamlit/secrets.toml
 
 # MLflow
 mlflow-artifacts/

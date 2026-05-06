@@ -150,7 +150,6 @@ plt.show()
 
 
 # Average Sales by Day of Week
-import sys
 sys.path.append(r'Q:\scripts\projects\ts-model-framework')
 
 df_full = pd.read_csv(

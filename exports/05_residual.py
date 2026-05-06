@@ -1,5 +1,4 @@
 # 05 - Residuals Analysis  
-# 
 
 # Version 1.00  
 # Created 05.05.26  

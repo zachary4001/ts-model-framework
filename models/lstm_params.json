@@ -1,1 +1,1 @@
-{"hidden_size": 64, "learning_rate": 0.008160687382890403, "batch_size": 8, "sequence_length": 30, "epochs": 50}
+{"hidden_size": 128, "learning_rate": 0.005177044530519136, "batch_size": 16, "sequence_length": 30, "epochs": 50}
