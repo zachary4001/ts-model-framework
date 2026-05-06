@@ -31,7 +31,7 @@ ts-model-framework/
 │   ├── oil.csv                        # daily WTI oil prices
 │   ├── holidays.csv                   # Ecuador national/regional/local holidays
 │   └── stores.csv                     # store metadata
-├── models/                            # saved model artifacts + prediction CSVs
+├── models/                            # saved model artifacts, images + prediction CSVs
 ├── exports/                           # stable .py exports for notebook imports
 │   ├── 00_EDA.py                         # exploratory data analysis
 │   ├── 01_preprocessing.py               # feature engineering + train/test split

@@ -1,5 +1,5 @@
 # ── app.py — Time Series Model Comparison Dashboard ──────────
-# Version 1.07
+# Version 1.07.9
 # updated 06.05.2026
 # ────────────────────────────────────────────────────────────
 import os
